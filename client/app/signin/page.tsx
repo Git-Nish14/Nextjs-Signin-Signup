@@ -3,12 +3,12 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
 import { useRouter } from "next/navigation";
-import { SIGNIN } from "@/graphql/mutations";
+import { SIGNIN, SIGNIN_WITH_GOOGLE } from "@/graphql/mutations";
 import Cookies from "js-cookie";
 import Link from "next/link";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion } from "framer-motion";
-import Image from "next/image";
+import { GoogleLogin } from "@react-oauth/google";
 
 interface LoginFormInputs {
   email: string;
@@ -17,6 +17,7 @@ interface LoginFormInputs {
 
 const Login: React.FC = () => {
   const [signin, { loading, error }] = useMutation(SIGNIN);
+  const [signinWithGoogle] = useMutation(SIGNIN_WITH_GOOGLE);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const {
@@ -43,6 +44,23 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const response = await signinWithGoogle({
+        variables: { token: credentialResponse.credential },
+      });
+
+      Cookies.set("token", response.data.googleSignin.token, {
+        secure: true,
+        sameSite: "strict",
+      });
+
+      router.push("/home");
+    } catch (err) {
+      console.error("Google Signin Error:", err);
+    }
+  };
+
   return (
     <motion.div
       className="flex items-center justify-center min-h-screen px-6 sm:px-0 bg-gradient-to-br from-gray-200 to-blue-400"
@@ -64,6 +82,7 @@ const Login: React.FC = () => {
         >
           Welcome Back
         </motion.h2>
+
         {error && (
           <motion.p
             className="text-red-500 text-center bg-gray-700 p-2 rounded-md"
@@ -74,6 +93,7 @@ const Login: React.FC = () => {
             {error.message}
           </motion.p>
         )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <motion.div
             className="relative"
@@ -127,13 +147,23 @@ const Login: React.FC = () => {
             {loading ? "Logging in..." : "Login"}
           </motion.button>
         </form>
+
+        <div className="my-4 text-center text-gray-400">or</div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => console.error("Google Login Failed")}
+          />
+        </div>
+
         <motion.p
           className="text-gray-400 text-center text-xs mt-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.3 }}
         >
-          Already a member?{" "}
+          Don't have an account?{" "}
           <Link
             href="/signup"
             className="text-blue-400 cursor-pointer underline"

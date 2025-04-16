@@ -5,6 +5,7 @@ import SigninResolver from "./resolvers/user/signin.mutation";
 import UserResolver from "./resolvers/user/user.query";
 import UsersResolver from "./resolvers/user/users.query";
 import GoogleSignupResolver from "./resolvers/user/googleSignupResolver";
+import GoogleSigninResolver from "./resolvers/user/googleSigninResolver";
 
 export const createSchema = async () => {
   return await buildSchema({
@@ -14,6 +15,7 @@ export const createSchema = async () => {
       UserResolver,
       UsersResolver,
       GoogleSignupResolver,
+      GoogleSigninResolver,
     ],
   });
 };

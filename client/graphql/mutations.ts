@@ -33,3 +33,11 @@ export const SIGNUP_WITH_GOOGLE = gql`
     }
   }
 `;
+
+export const SIGNIN_WITH_GOOGLE = gql`
+  mutation GoogleSignin($token: String!) {
+    googleSignin(token: $token) {
+      token
+    }
+  }
+`;
