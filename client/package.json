@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@apollo/client": "^3.13.7",
+    "@react-oauth/google": "^0.12.1",
     "framer-motion": "^12.7.3",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.488.0",

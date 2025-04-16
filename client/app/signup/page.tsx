@@ -4,11 +4,12 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
 import { useRouter } from "next/navigation";
-import { SIGNUP } from "@/graphql/mutations";
+import { SIGNUP, SIGNUP_WITH_GOOGLE } from "@/graphql/mutations";
 import Cookies from "js-cookie";
 import Link from "next/link";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { GoogleLogin } from "@react-oauth/google";
 
 interface SignupFormInputs {
   firstName: string;
@@ -19,6 +20,7 @@ interface SignupFormInputs {
 
 const Signup: React.FC = () => {
   const [signup, { loading, error }] = useMutation(SIGNUP);
+  const [signupWithGoogle] = useMutation(SIGNUP_WITH_GOOGLE);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const {
@@ -39,6 +41,23 @@ const Signup: React.FC = () => {
       }
     } catch (err) {
       console.error("Signup Error:", err);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    try {
+      const response = await signupWithGoogle({
+        variables: { token: credentialResponse.credential },
+      });
+      if (response.data) {
+        Cookies.set("token", response.data.googleSignup.token, {
+          secure: true,
+          sameSite: "strict",
+        });
+        router.push("/home");
+      }
+    } catch (err) {
+      console.error("Google Signup Error:", err);
     }
   };
 
@@ -63,6 +82,7 @@ const Signup: React.FC = () => {
         >
           Create Your Account
         </motion.h2>
+
         {error && (
           <motion.p
             className="text-red-500 text-center bg-gray-700 p-2 rounded-md"
@@ -73,51 +93,47 @@ const Signup: React.FC = () => {
             {error.message}
           </motion.p>
         )}
+
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <motion.div className="relative">
-            <input
-              type="text"
-              placeholder="First Name"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
-              {...register("firstName", { required: "First name is required" })}
-            />
-            {errors.firstName && (
-              <p className="text-red-400 text-sm mt-1">
-                {errors.firstName.message}
-              </p>
-            )}
-          </motion.div>
-          <motion.div className="relative">
-            <input
-              type="text"
-              placeholder="Last Name"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
-              {...register("lastName", { required: "Last name is required" })}
-            />
-            {errors.lastName && (
-              <p className="text-red-400 text-sm mt-1">
-                {errors.lastName.message}
-              </p>
-            )}
-          </motion.div>
-          <motion.div className="relative">
-            <input
-              type="email"
-              placeholder="Email"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
-              {...register("email", { required: "Email is required" })}
-            />
-            {errors.email && (
-              <p className="text-red-400 text-sm mt-1">
-                {errors.email.message}
-              </p>
-            )}
-          </motion.div>
-          <motion.div className="relative">
+          <input
+            type="text"
+            placeholder="First Name"
+            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            {...register("firstName", { required: "First name is required" })}
+          />
+          {errors.firstName && (
+            <p className="text-red-400 text-sm mt-1">
+              {errors.firstName.message}
+            </p>
+          )}
+
+          <input
+            type="text"
+            placeholder="Last Name"
+            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            {...register("lastName", { required: "Last name is required" })}
+          />
+          {errors.lastName && (
+            <p className="text-red-400 text-sm mt-1">
+              {errors.lastName.message}
+            </p>
+          )}
+
+          <input
+            type="email"
+            placeholder="Email"
+            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            {...register("email", { required: "Email is required" })}
+          />
+          {errors.email && (
+            <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
+          )}
+
+          <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+              className="mb-4 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
               {...register("password", { required: "Password is required" })}
             />
             <button
@@ -131,7 +147,8 @@ const Signup: React.FC = () => {
                 <EyeIcon className="w-5 h-5" />
               )}
             </button>
-          </motion.div>
+          </div>
+
           <motion.button
             type="submit"
             className="text-white font-medium w-full py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-900"
@@ -142,7 +159,17 @@ const Signup: React.FC = () => {
             {loading ? "Signing up..." : "Sign Up"}
           </motion.button>
         </form>
-        <motion.p className="text-gray-400 text-center text-xs mt-4">
+
+        <div className="my-4 text-center text-gray-400">or</div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => console.error("Google Login Failed")}
+          />
+        </div>
+
+        <p className="text-gray-400 text-center text-xs mt-4">
           Already have an account?{" "}
           <Link
             href="/login"
@@ -150,7 +177,7 @@ const Signup: React.FC = () => {
           >
             Log in
           </Link>
-        </motion.p>
+        </p>
       </motion.div>
     </motion.div>
   );

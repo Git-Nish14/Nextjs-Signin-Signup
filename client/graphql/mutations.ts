@@ -25,3 +25,11 @@ export const SIGNUP = gql`
     }
   }
 `;
+
+export const SIGNUP_WITH_GOOGLE = gql`
+  mutation GoogleSignup($token: String!) {
+    googleSignup(token: $token) {
+      token
+    }
+  }
+`;

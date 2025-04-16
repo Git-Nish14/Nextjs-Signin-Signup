@@ -12,7 +12,7 @@ export default class SigninResolver {
     @Arg("password") password: string
   ): Promise<Token> {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new Error("Invalid credentials");
+    if (!user || !user.password) throw new Error("Invalid credentials");
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) throw new Error("Invalid credentials");
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
