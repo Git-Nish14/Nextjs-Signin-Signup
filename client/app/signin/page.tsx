@@ -1,9 +1,9 @@
 "use client";
-import React, { useState } from "react";
+
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@apollo/client";
-import { useRouter } from "next/navigation";
-import { SIGNIN, SIGNIN_WITH_GOOGLE } from "@/graphql/mutations";
+import { useRouter, useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
 import Link from "next/link";
 import { EyeIcon, EyeOffIcon, Github } from "lucide-react";
@@ -11,29 +11,40 @@ import { motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { toast } from "react-toastify";
 
+import {
+  SIGNIN,
+  SIGNIN_WITH_GOOGLE,
+  SIGNIN_WITH_GITHUB,
+} from "@/graphql/mutations";
+
 interface LoginFormInputs {
   email: string;
   password: string;
 }
 
-const Login: React.FC = () => {
-  const [signin, { loading, error }] = useMutation(SIGNIN);
-  const [signinWithGoogle] = useMutation(SIGNIN_WITH_GOOGLE);
+const SigninPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [signin, { loading, error }] = useMutation(SIGNIN);
+  const [signinWithGoogle] = useMutation(SIGNIN_WITH_GOOGLE);
+  const [signinWithGitHub] = useMutation(SIGNIN_WITH_GITHUB);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormInputs>();
 
+  // ⚙️ Email/Password Signin
   const onSubmit = async (formData: LoginFormInputs) => {
     try {
       const response = await signin({
         variables: { email: formData.email, password: formData.password },
       });
 
-      if (response.data) {
+      if (response.data?.signin?.token) {
         Cookies.set("token", response.data.signin.token, {
           secure: true,
           sameSite: "strict",
@@ -41,10 +52,11 @@ const Login: React.FC = () => {
         router.push("/home");
       }
     } catch (err) {
-      console.error("Login Error:", err);
+      toast.error("Invalid credentials");
     }
   };
 
+  // ⚙️ Google Signin
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
       const response = await signinWithGoogle({
@@ -58,21 +70,39 @@ const Login: React.FC = () => {
 
       router.push("/home");
     } catch (err: any) {
-      const errorMessage =
-        err?.message || "Google Signin failed. Please try again.";
-
-      console.error("Google Signin Error:", errorMessage);
+      const errorMessage = err?.message || "Google Signin failed.";
       toast.error(errorMessage);
-
-      if (errorMessage.includes("No account found")) {
-        setTimeout(() => router.push("/signup"), 3000);
-      }
     }
   };
 
+  // ⚙️ GitHub Login (OAuth redirect)
   const handleGithubLogin = () => {
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&scope=user:email`;
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID!;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
   };
+
+  // ⚙️ GitHub Redirect Callback Handler
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) return;
+
+    const handleGitHubCallback = async () => {
+      try {
+        const response = await signinWithGitHub({ variables: { code } });
+
+        Cookies.set("token", response.data.githubSignin.token, {
+          secure: true,
+          sameSite: "strict",
+        });
+
+        router.push("/home");
+      } catch (err: any) {
+        toast.error(err.message || "GitHub Signin failed.");
+      }
+    };
+
+    handleGitHubCallback();
+  }, [searchParams, signinWithGitHub, router]);
 
   return (
     <motion.div
@@ -82,13 +112,13 @@ const Login: React.FC = () => {
       transition={{ duration: 1 }}
     >
       <motion.div
-        className="bg-slate-900 p-10 rounded-lg shadow-lg w-full sm:w-96 text-colour text-sm"
+        className="bg-slate-900 p-10 rounded-lg shadow-lg w-full sm:w-96 text-white text-sm"
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
       >
         <motion.h2
-          className="text-white text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2"
+          className="text-2xl font-bold text-center mb-6"
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
@@ -97,50 +127,34 @@ const Login: React.FC = () => {
         </motion.h2>
 
         {error && (
-          <motion.p
-            className="text-red-500 text-center bg-gray-700 p-2 rounded-md"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-          >
+          <motion.p className="text-red-500 text-center bg-gray-700 p-2 rounded-md">
             {error.message}
           </motion.p>
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <motion.div
-            className="relative"
-            initial={{ x: -30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
+          <div className="relative">
             <input
               type="email"
               placeholder="Email"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+              className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
               {...register("email", { required: "Email is required" })}
             />
             {errors.email && (
-              <p className="text-red-400 text-sm mt-1">
-                {errors.email.message}
-              </p>
+              <p className="text-red-400 mt-1">{errors.email.message}</p>
             )}
-          </motion.div>
-          <motion.div
-            className="relative"
-            initial={{ x: 30, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
-          >
+          </div>
+
+          <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
-              className="mb-4 flex items-center gap-3 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+              className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
               {...register("password", { required: "Password is required" })}
             />
             <button
               type="button"
-              className="absolute right-3 top-3 text-gray-400 hover:text-white"
+              className="absolute right-3 top-3 text-gray-300"
               onClick={() => setShowPassword(!showPassword)}
             >
               {showPassword ? (
@@ -149,10 +163,11 @@ const Login: React.FC = () => {
                 <EyeIcon className="w-5 h-5" />
               )}
             </button>
-          </motion.div>
+          </div>
+
           <motion.button
             type="submit"
-            className="text-white font-medium w-full py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-900"
+            className="w-full py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-900 font-medium"
             disabled={loading}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -163,10 +178,10 @@ const Login: React.FC = () => {
 
         <div className="my-4 text-center text-gray-400">or</div>
 
-        <div className="flex flex-col gap-3 justify-center">
+        <div className="flex flex-col gap-3">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => console.error("Google Login Failed")}
+            onError={() => toast.error("Google login failed")}
           />
 
           <button
@@ -178,23 +193,15 @@ const Login: React.FC = () => {
           </button>
         </div>
 
-        <motion.p
-          className="text-gray-400 text-center text-xs mt-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.3 }}
-        >
-          Don't have an account?{" "}
-          <Link
-            href="/signup"
-            className="text-blue-400 cursor-pointer underline"
-          >
+        <p className="text-gray-400 text-center text-xs mt-4">
+          Don’t have an account?{" "}
+          <Link href="/signup" className="text-blue-400 underline">
             Sign up
           </Link>
-        </motion.p>
+        </p>
       </motion.div>
     </motion.div>
   );
 };
 
-export default Login;
+export default SigninPage;

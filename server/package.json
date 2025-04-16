@@ -19,6 +19,7 @@
     "@prisma/client": "^6.6.0",
     "@tailwindcss/cli": "^4.1.4",
     "apollo-server-express": "^3.13.0",
+    "axios": "^1.8.4",
     "bcryptjs": "^3.0.2",
     "class-validator": "^0.14.1",
     "dotenv": "^16.5.0",

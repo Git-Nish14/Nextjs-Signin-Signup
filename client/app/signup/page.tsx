@@ -1,13 +1,17 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@apollo/client";
-import { useRouter } from "next/navigation";
-import { SIGNUP, SIGNUP_WITH_GOOGLE } from "@/graphql/mutations";
+import {
+  SIGNUP,
+  SIGNUP_WITH_GOOGLE,
+  SIGNUP_WITH_GITHUB,
+} from "@/graphql/mutations";
 import Cookies from "js-cookie";
 import Link from "next/link";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Github } from "lucide-react";
 import { motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
 import { toast } from "react-toastify";
@@ -22,18 +26,23 @@ interface SignupFormInputs {
 const Signup: React.FC = () => {
   const [signup, { loading, error }] = useMutation(SIGNUP);
   const [signupWithGoogle] = useMutation(SIGNUP_WITH_GOOGLE);
+  const [signupWithGitHub] = useMutation(SIGNUP_WITH_GITHUB);
+
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<SignupFormInputs>();
 
+  // ⏺ Email/Password Signup
   const onSubmit = async (formData: SignupFormInputs) => {
     try {
       const response = await signup({ variables: formData });
-      if (response.data) {
+      if (response.data?.signup?.token) {
         Cookies.set("token", response.data.signup.token, {
           secure: true,
           sameSite: "strict",
@@ -41,10 +50,12 @@ const Signup: React.FC = () => {
         router.push("/home");
       }
     } catch (err) {
+      toast.error("Signup failed. Try again.");
       console.error("Signup Error:", err);
     }
   };
 
+  // ⏺ Google Signup
   const handleGoogleSuccess = async (credentialResponse: any) => {
     try {
       const response = await signupWithGoogle({
@@ -58,22 +69,43 @@ const Signup: React.FC = () => {
 
       router.push("/home");
     } catch (err: any) {
-      const message = err?.message || "Google Signup failed. Please try again.";
-
+      const message = err?.message || "Google Signup failed.";
       toast.error(message);
-
-      // Optional: Redirect to login if account exists
       if (message.includes("already exists")) {
         setTimeout(() => router.push("/signin"), 3000);
       }
-
-      console.error("Google Signup Error:", message);
     }
   };
 
+  // ⏺ GitHub Signup Button Click
   const handleGithubSignup = () => {
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&scope=user:email`;
+    const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=user:email`;
   };
+
+  // ⏺ GitHub OAuth Callback Handler
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (!code) return;
+
+    const registerWithGitHub = async () => {
+      try {
+        const res = await signupWithGitHub({ variables: { code } });
+        Cookies.set("token", res.data.githubSignup.token, {
+          secure: true,
+          sameSite: "strict",
+        });
+        router.push("/home");
+      } catch (err: any) {
+        toast.error(err?.message || "GitHub signup failed.");
+        if (err.message.includes("already exists")) {
+          setTimeout(() => router.push("/signin"), 3000);
+        }
+      }
+    };
+
+    registerWithGitHub();
+  }, [searchParams]);
 
   return (
     <motion.div
@@ -112,42 +144,38 @@ const Signup: React.FC = () => {
           <input
             type="text"
             placeholder="First Name"
-            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
             {...register("firstName", { required: "First name is required" })}
           />
           {errors.firstName && (
-            <p className="text-red-400 text-sm mt-1">
-              {errors.firstName.message}
-            </p>
+            <p className="text-red-400">{errors.firstName.message}</p>
           )}
 
           <input
             type="text"
             placeholder="Last Name"
-            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
             {...register("lastName", { required: "Last name is required" })}
           />
           {errors.lastName && (
-            <p className="text-red-400 text-sm mt-1">
-              {errors.lastName.message}
-            </p>
+            <p className="text-red-400">{errors.lastName.message}</p>
           )}
 
           <input
             type="email"
             placeholder="Email"
-            className="mb-2 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+            className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
             {...register("email", { required: "Email is required" })}
           />
           {errors.email && (
-            <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
+            <p className="text-red-400">{errors.email.message}</p>
           )}
 
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
-              className="mb-4 w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
+              className="w-full px-12 py-2.5 rounded-full bg-[#5C6691]"
               {...register("password", { required: "Password is required" })}
             />
             <button
@@ -176,29 +204,24 @@ const Signup: React.FC = () => {
 
         <div className="my-4 text-center text-gray-400">or</div>
 
-        <div className="flex justify-center">
+        <div className="flex flex-col gap-3">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
-            onError={() => console.error("Google Login Failed")}
+            onError={() => toast.error("Google Signup Failed")}
           />
-        </div>
 
-        <button
-          onClick={handleGithubSignup}
-          className="mt-3 flex items-center justify-center gap-2 bg-black text-white py-2.5 px-6 rounded-full w-full"
-        >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 .5C5.5.5.5 5.7.5 12.2c0 5.2 3.4 9.5 8 11.1.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2.9 1.6 2.3 1.1 2.9.8.1-.7.4-1.1.7-1.4-2.6-.3-5.4-1.3-5.4-5.7 0-1.2.4-2.1 1.1-2.9 0-.3-.5-1.3.1-2.8 0 0 .9-.3 2.9 1.1.9-.2 1.9-.3 2.9-.3s2 .1 2.9.3c2-1.4 2.9-1.1 2.9-1.1.6 1.5.1 2.5.1 2.8.7.8 1.1 1.7 1.1 2.9 0 4.4-2.8 5.4-5.4 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.7-1.6 8.1-5.9 8.1-11.1C23.5 5.7 18.5.5 12 .5z" />
-          </svg>
-          Sign up with GitHub
-        </button>
+          <button
+            onClick={handleGithubSignup}
+            className="flex justify-center items-center gap-2 bg-black text-white py-2.5 rounded-full"
+          >
+            <Github className="w-5 h-5" />
+            Sign up with GitHub
+          </button>
+        </div>
 
         <p className="text-gray-400 text-center text-xs mt-4">
           Already have an account?{" "}
-          <Link
-            href="/signin"
-            className="text-blue-400 cursor-pointer underline"
-          >
+          <Link href="/signin" className="text-blue-400 underline">
             Log in
           </Link>
         </p>
