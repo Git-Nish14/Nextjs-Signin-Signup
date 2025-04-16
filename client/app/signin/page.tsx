@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { SIGNIN, SIGNIN_WITH_GOOGLE } from "@/graphql/mutations";
 import Cookies from "js-cookie";
 import Link from "next/link";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Github } from "lucide-react";
 import { motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
+import { toast } from "react-toastify";
 
 interface LoginFormInputs {
   email: string;
@@ -56,9 +57,21 @@ const Login: React.FC = () => {
       });
 
       router.push("/home");
-    } catch (err) {
-      console.error("Google Signin Error:", err);
+    } catch (err: any) {
+      const errorMessage =
+        err?.message || "Google Signin failed. Please try again.";
+
+      console.error("Google Signin Error:", errorMessage);
+      toast.error(errorMessage);
+
+      if (errorMessage.includes("No account found")) {
+        setTimeout(() => router.push("/signup"), 3000);
+      }
     }
+  };
+
+  const handleGithubLogin = () => {
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&scope=user:email`;
   };
 
   return (
@@ -150,11 +163,19 @@ const Login: React.FC = () => {
 
         <div className="my-4 text-center text-gray-400">or</div>
 
-        <div className="flex justify-center">
+        <div className="flex flex-col gap-3 justify-center">
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => console.error("Google Login Failed")}
           />
+
+          <button
+            onClick={handleGithubLogin}
+            className="flex justify-center items-center gap-2 bg-black text-white py-2.5 rounded-full"
+          >
+            <Github className="w-5 h-5" />
+            Sign in with GitHub
+          </button>
         </div>
 
         <motion.p

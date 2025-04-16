@@ -10,6 +10,7 @@ import Link from "next/link";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { GoogleLogin } from "@react-oauth/google";
+import { toast } from "react-toastify";
 
 interface SignupFormInputs {
   firstName: string;
@@ -49,16 +50,29 @@ const Signup: React.FC = () => {
       const response = await signupWithGoogle({
         variables: { token: credentialResponse.credential },
       });
-      if (response.data) {
-        Cookies.set("token", response.data.googleSignup.token, {
-          secure: true,
-          sameSite: "strict",
-        });
-        router.push("/home");
+
+      Cookies.set("token", response.data.googleSignup.token, {
+        secure: true,
+        sameSite: "strict",
+      });
+
+      router.push("/home");
+    } catch (err: any) {
+      const message = err?.message || "Google Signup failed. Please try again.";
+
+      toast.error(message);
+
+      // Optional: Redirect to login if account exists
+      if (message.includes("already exists")) {
+        setTimeout(() => router.push("/signin"), 3000);
       }
-    } catch (err) {
-      console.error("Google Signup Error:", err);
+
+      console.error("Google Signup Error:", message);
     }
+  };
+
+  const handleGithubSignup = () => {
+    window.location.href = `https://github.com/login/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID}&scope=user:email`;
   };
 
   return (
@@ -169,10 +183,20 @@ const Signup: React.FC = () => {
           />
         </div>
 
+        <button
+          onClick={handleGithubSignup}
+          className="mt-3 flex items-center justify-center gap-2 bg-black text-white py-2.5 px-6 rounded-full w-full"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 .5C5.5.5.5 5.7.5 12.2c0 5.2 3.4 9.5 8 11.1.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.5-1.3-1.2-1.6-1.2-1.6-1-.7.1-.7.1-.7 1.1.1 1.7 1.2 1.7 1.2.9 1.6 2.3 1.1 2.9.8.1-.7.4-1.1.7-1.4-2.6-.3-5.4-1.3-5.4-5.7 0-1.2.4-2.1 1.1-2.9 0-.3-.5-1.3.1-2.8 0 0 .9-.3 2.9 1.1.9-.2 1.9-.3 2.9-.3s2 .1 2.9.3c2-1.4 2.9-1.1 2.9-1.1.6 1.5.1 2.5.1 2.8.7.8 1.1 1.7 1.1 2.9 0 4.4-2.8 5.4-5.4 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.7-1.6 8.1-5.9 8.1-11.1C23.5 5.7 18.5.5 12 .5z" />
+          </svg>
+          Sign up with GitHub
+        </button>
+
         <p className="text-gray-400 text-center text-xs mt-4">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href="/signin"
             className="text-blue-400 cursor-pointer underline"
           >
             Log in

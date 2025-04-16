@@ -41,3 +41,19 @@ export const SIGNIN_WITH_GOOGLE = gql`
     }
   }
 `;
+
+export const SIGNIN_WITH_GITHUB = gql`
+  mutation GitHubSignin($email: String!, $name: String!) {
+    githubSignin(email: $email, name: $name) {
+      token
+    }
+  }
+`;
+
+export const SIGNUP_WITH_GITHUB = gql`
+  mutation GitHubSignup($email: String!, $name: String!) {
+    githubSignup(email: $email, name: $name) {
+      token
+    }
+  }
+`;

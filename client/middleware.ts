@@ -2,25 +2,44 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const authCookie = req.cookies.get("Authorization")?.value || "";
-  const isAuthenticated = authCookie.startsWith("Bearer ");
+  const token = req.cookies.get("token")?.value || "";
+  const isAuthenticated = token.length > 0;
 
   const { pathname } = req.nextUrl;
 
-  // Protected routes (Everything after "/home")
+  // ✅ Protect all /home and subroutes
   if (pathname.startsWith("/home") && !isAuthenticated) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Public routes where authenticated users shouldn't be
-  if (["/", "/signup", "/signin"].includes(pathname) && isAuthenticated) {
+  // ✅ Block login/signup pages for authenticated users
+  const publicRoutes = ["/", "/signup", "/signin"];
+  if (publicRoutes.includes(pathname) && isAuthenticated) {
+    return NextResponse.redirect(new URL("/home", req.url));
+  }
+
+  // ✅ Block access to OAuth/auth routes if already logged in
+  const protectedAuthRoutes = [
+    "/api/auth/github",
+    "/api/auth/signup",
+    "/api/auth/signin",
+  ];
+  if (protectedAuthRoutes.includes(pathname) && isAuthenticated) {
     return NextResponse.redirect(new URL("/home", req.url));
   }
 
   return NextResponse.next();
 }
 
-// Apply middleware to relevant routes
 export const config = {
-  matcher: ["/", "/signup", "/signin", "/home:path*", "/home/:path*"], // Protects /home and everything after
+  matcher: [
+    "/",
+    "/signup",
+    "/signin",
+    "/home:path*",
+    "/home/:path*",
+    "/api/auth/github",
+    "/api/auth/signup",
+    "/api/auth/signin",
+  ],
 };

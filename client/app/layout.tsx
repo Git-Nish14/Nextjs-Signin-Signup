@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ApolloProviderWrapper } from "@/lib/apollo/ApolloProviderWrapper";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { ToastContainer } from "react-toastify";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,6 +32,7 @@ export default function RootLayout({
           clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}
         >
           <ApolloProviderWrapper>{children}</ApolloProviderWrapper>
+          <ToastContainer position="top-right" />
         </GoogleOAuthProvider>
       </body>
     </html>
